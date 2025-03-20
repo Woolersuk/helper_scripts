@@ -25,12 +25,12 @@ $roleMap = @{
 
 # Generate all the tp* shortcut functions dynamically
 foreach ($account in $roleMap.Keys) {
-    # Generate RW function
+    # Generate RW function - keep using the original function
     $rwFunctionScript = "function global:tp${account}RW { Switch-TeleportAWSRole -Account '$account' -AccessLevel 'RW' }"
     Invoke-Expression $rwFunctionScript
     
-    # Generate RO function
-    $roFunctionScript = "function global:tp${account}RO { Switch-TeleportAWSRole -Account '$account' -AccessLevel 'RO' }"
+    # Generate RO function - use the new function that skips assume-role
+    $roFunctionScript = "function global:tp${account}RO { Switch-TeleportAWSRoleRO -Account '$account' }"
     Invoke-Expression $roFunctionScript
     
     # For backward compatibility, make tp$account point to the RW version
@@ -40,6 +40,42 @@ foreach ($account in $roleMap.Keys) {
 
 # Quickly obtain AWS credentials via Teleport
 function Get-TeleportAWS { tsh aws }
+
+# Function specifically for RO access that doesn't attempt to assume role
+function Switch-TeleportAWSRoleRO {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$Account
+    )
+
+    # Validate account
+    if (-not $roleMap.ContainsKey($Account)) {
+        Write-Host "Error: Invalid account name '$Account'." -ForegroundColor Red
+        return
+    }
+
+    $accountData = $roleMap[$Account]
+    $role = $accountData["RO"]
+    $appName = $accountData["APP_NAME"]
+
+    if (-not $role -or -not $appName) {
+        Write-Host "Error: Missing role or app name for '$Account' (RO)." -ForegroundColor Red
+        return
+    }
+
+    # Get current app to handle logout if needed
+    $currentApp = tsh apps ls -f text | Select-String "^> (\S+)" | ForEach-Object { $_.Matches.Groups[1].Value }
+    if ($currentApp -and $currentApp -ne $appName) {
+        Write-Host "Logging out of current app: $currentApp" -ForegroundColor Yellow
+        tsh apps logout $currentApp | Out-Null
+    }
+
+    # Login to the appropriate app with the specified role (without trying to assume role)
+    Write-Host "Logging into Teleport App: $appName with role: $role" -ForegroundColor Cyan
+    tsh apps login $appName --aws-role $role
+
+    Write-Host "Logged Into: $Account - (RO)." -ForegroundColor Green
+}
 
 # Unified function to login to Teleport app and assume AWS role
 function Switch-TeleportAWSRole {
@@ -71,12 +107,12 @@ function Switch-TeleportAWSRole {
     # Get current app to handle logout if needed
     $currentApp = tsh apps ls -f text | Select-String "^> (\S+)" | ForEach-Object { $_.Matches.Groups[1].Value }
     if ($currentApp -and $currentApp -ne $appName) {
-        Write-Host "Logging out of current app: $currentApp..." -ForegroundColor Yellow
+        Write-Host "Logging out of current app: $currentApp" -ForegroundColor Yellow
         tsh apps logout $currentApp | Out-Null
     }
 
     # Login to the appropriate app with the specified role
-    Write-Host "Logging into Teleport App: $appName with role: $role..." -ForegroundColor Cyan
+    Write-Host "Logging into Teleport App: $appName with role: $role" -ForegroundColor Cyan
     tsh apps login $appName --aws-role $role | Out-Null
 
     # Assume the AWS role
