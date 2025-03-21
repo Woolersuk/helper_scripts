@@ -31,8 +31,33 @@ role_map[usprod, APP]="yl-usproduction"
 TP_PROXY="${TP_PROXY:-youlend.teleport.sh:443}"
 TP_AUTH="${TP_AUTH:-ad}"
 
+# Function to check if user is logged into Teleport
+is_logged_in() {
+  tsh status &>/dev/null
+  return $?
+}
+
+# Function to login to Teleport if not already logged in
+ensure_logged_in() {
+  if ! is_logged_in; then
+    echo -e "\e[33mNot logged in to Teleport. Attempting login...\e[0m"
+    tsh login --auth=${TP_AUTH} --proxy=${TP_PROXY}
+    
+    # Check if login was successful
+    if ! is_logged_in; then
+      echo -e "\e[31mLogin failed. Please login manually with 'tl' command.\e[0m"
+      return 1
+    fi
+    echo -e "\e[32mLogin successful!\e[0m"
+  fi
+  return 0
+}
+
 # Unified function to switch AWS roles through Teleport
 tp_switch_role() {
+  # First ensure we're logged in
+  ensure_logged_in || return 1
+
   local account="$1"
   local access_level="$2"
   local app_name="${role_map[$account, APP]}"
@@ -77,16 +102,24 @@ alias tlo='tsh logout'
 alias tstat='tsh status'
 alias taws='tsh aws'
 
-# Kubernetes cluster login shortcuts
-alias tkadmin="tsh kube login headquarter-admin-eks-green --proxy=${TP_PROXY} --auth=${TP_AUTH}"
-alias tkdev="tsh kube login aslive-dev-eks-green --proxy=${TP_PROXY} --auth=${TP_AUTH}"
-alias tkprod="tsh kube login live-prod-eks-green --proxy=${TP_PROXY} --auth=${TP_AUTH}"
-alias tksandbox="tsh kube login aslive-sandbox-eks-green --proxy=${TP_PROXY} --auth=${TP_AUTH}"
-alias tkstaging="tsh kube login aslive-staging-eks-green --proxy=${TP_PROXY} --auth=${TP_AUTH}"
-alias tkusprod="tsh kube login live-usprod-eks-green --proxy=${TP_PROXY} --auth=${TP_AUTH}"
+# Kubernetes cluster login shortcuts with auto-login
+tkube_login_wrapper() {
+  local cluster="$1"
+  ensure_logged_in && tsh kube login "$cluster" --proxy=${TP_PROXY} --auth=${TP_AUTH}
+}
+
+alias tkadmin="tkube_login_wrapper headquarter-admin-eks-green"
+alias tkdev="tkube_login_wrapper aslive-dev-eks-green"
+alias tkprod="tkube_login_wrapper live-prod-eks-green"
+alias tksandbox="tkube_login_wrapper aslive-sandbox-eks-green"
+alias tkstaging="tkube_login_wrapper aslive-staging-eks-green"
+alias tkusprod="tkube_login_wrapper live-usprod-eks-green"
 
 # Helper function for interactive app login with AWS role selection
 tawsp_interactive_login() {
+  # Ensure we're logged in first
+  ensure_logged_in || return 1
+  
   local output header apps
 
   # Get the list of apps.
@@ -191,6 +224,9 @@ tawsp_interactive_login() {
 
 # Helper function for interactive login (choose)
 tkube_interactive_login() {
+  # Ensure we're logged in first
+  ensure_logged_in || return 1
+  
   local output header clusters
   output=$(tsh kube ls -f text)
   header=$(echo "$output" | head -n 2)
@@ -232,6 +268,9 @@ tkube_interactive_login() {
 
 # Main tkube function
 tkube() {
+  # Ensure we're logged in first for all tkube operations
+  ensure_logged_in || return 1
+  
   # Check for top-level flags:
   # -c for choose (interactive login)
   # -l for list clusters
@@ -279,6 +318,9 @@ tkube() {
 
 # Main function for Teleport apps
 tawsp() {
+  # Ensure we're logged in first for all tawsp operations
+  ensure_logged_in || return 1
+  
   # Top-level flags:
   # -c: interactive login (choose app and then role)
   # -l: list available apps
@@ -411,6 +453,9 @@ tp_history() {
 
 # Function to run a command across multiple clusters
 tkube_exec_all() {
+  # Ensure we're logged in first
+  ensure_logged_in || return 1
+  
   local command="$1"
   local clusters output
 
@@ -439,6 +484,9 @@ tkube_exec_all() {
 
 # Function to save/restore AWS profiles
 tp_save_profile() {
+  # Ensure we're logged in first
+  ensure_logged_in || return 1
+  
   local profile_name="$1"
   local current_app current_role
 
@@ -468,6 +516,9 @@ tp_save_profile() {
 }
 
 tp_load_profile() {
+  # Ensure we're logged in first
+  ensure_logged_in || return 1
+  
   local profile_name="$1"
   local profile_file="$HOME/.teleport/profiles/$profile_name.json"
 

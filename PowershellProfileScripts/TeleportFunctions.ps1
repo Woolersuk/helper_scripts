@@ -10,6 +10,28 @@ function Set-TeleportLoginKubeUSProd { tsh kube login live-usprod-eks-green --pr
 function Set-TeleportLogout { tsh logout }
 function Set-TeleportLogoutApps { tsh apps logout }
 
+# Helper function to check if user is logged in
+function Test-TeleportLogin {
+    $status = tsh status 2>&1
+    return -not ($status -match "ERROR: Not logged in.")
+}
+
+# Helper function to ensure user is logged in before executing commands
+function Ensure-TeleportLogin {
+    if (-not (Test-TeleportLogin)) {
+        Write-Host "Not logged in to Teleport. Logging in now..." -ForegroundColor Yellow
+        Set-TeleportLogin
+        
+        # Verify login was successful
+        if (-not (Test-TeleportLogin)) {
+            Write-Host "Login failed. Please try manually with 'tl'" -ForegroundColor Red
+            return $false
+        }
+        Write-Host "Login successful" -ForegroundColor Green
+    }
+    return $true
+}
+
 # Role mapping with account IDs
 $roleMap = @{
     "admin"     = @{ RO = "admin"; RW = "sudo_admin"; ACCOUNT_ID = "310920692287"; APP_NAME = "yl-admin" }
@@ -23,30 +45,17 @@ $roleMap = @{
     "usstaging" = @{ RO = "usstaging"; RW = "sudo_usstaging"; ACCOUNT_ID = "973302516471"; APP_NAME = "yl-usstaging" }
 }
 
-# Generate all the tp* shortcut functions dynamically
-foreach ($account in $roleMap.Keys) {
-    # Generate RW function - keep using the original function
-    $rwFunctionScript = "function global:tp${account}RW { Switch-TeleportAWSRole -Account '$account' -AccessLevel 'RW' }"
-    Invoke-Expression $rwFunctionScript
-    
-    # Generate RO function - use the new function that skips assume-role
-    $roFunctionScript = "function global:tp${account}RO { Switch-TeleportAWSRoleRO -Account '$account' }"
-    Invoke-Expression $roFunctionScript
-    
-    # For backward compatibility, make tp$account point to the RW version
-    $aliasFunctionScript = "function global:tp$account { Switch-TeleportAWSRole -Account '$account' -AccessLevel 'RW' }"
-    Invoke-Expression $aliasFunctionScript
-}
-
-# Quickly obtain AWS credentials via Teleport
-function Get-TeleportAWS { tsh aws }
-
 # Function specifically for RO access that doesn't attempt to assume role
 function Switch-TeleportAWSRoleRO {
     param (
         [Parameter(Mandatory=$true)]
         [string]$Account
     )
+
+    # Ensure user is logged in
+    if (-not (Ensure-TeleportLogin)) {
+        return
+    }
 
     # Validate account
     if (-not $roleMap.ContainsKey($Account)) {
@@ -87,6 +96,11 @@ function Switch-TeleportAWSRole {
         [ValidateSet("RW", "RO")]
         [string]$AccessLevel = "RW"
     )
+
+    # Ensure user is logged in
+    if (-not (Ensure-TeleportLogin)) {
+        return
+    }
 
     # Validate account
     if (-not $roleMap.ContainsKey($Account)) {
@@ -131,6 +145,14 @@ function Switch-TeleportAWSRole {
     Write-Host "Logged Into: $Account - ($AccessLevel)." -ForegroundColor Green
 }
 
+# Quickly obtain AWS credentials via Teleport
+function Get-TeleportAWS { 
+    # Ensure user is logged in
+    if (Ensure-TeleportLogin) {
+        tsh aws 
+    }
+}
+
 # Main Kubernetes function
 function Invoke-TeleportKube {
     param(
@@ -146,6 +168,11 @@ function Invoke-TeleportKube {
         [Parameter(ValueFromRemainingArguments = $true)]
         [string[]]$Arguments
     )
+
+    # Ensure user is logged in
+    if (-not (Ensure-TeleportLogin)) {
+        return
+    }
 
     # Handle switches first
     if ($c) { 
@@ -194,6 +221,11 @@ function Invoke-TeleportAWS {
         [string[]]$Arguments
     )
 
+    # Ensure user is logged in
+    if (-not (Ensure-TeleportLogin)) {
+        return
+    }
+
     # Handle switches first
     if ($c) { 
         Invoke-TeleportAWSInteractiveLogin
@@ -224,6 +256,11 @@ function Invoke-TeleportAWS {
 
 # Helper function for interactive app login with AWS role selection
 function Invoke-TeleportAWSInteractiveLogin {
+    # Ensure user is logged in
+    if (-not (Ensure-TeleportLogin)) {
+        return
+    }
+
     # Get the list of apps
     $output = tsh apps ls -f text
     if (-not $output) {
@@ -325,6 +362,11 @@ function Invoke-TeleportAWSInteractiveLogin {
 
 # Helper function for interactive Kubernetes login
 function Invoke-TeleportKubeInteractiveLogin {
+    # Ensure user is logged in
+    if (-not (Ensure-TeleportLogin)) {
+        return
+    }
+
     $output = tsh kube ls -f text
     if (-not $output) {
         Write-Host "No Kubernetes clusters available."
@@ -369,6 +411,21 @@ function Invoke-TeleportKubeInteractiveLogin {
     tsh kube login $cluster
 }
 
+# Generate all the tp* shortcut functions dynamically
+foreach ($account in $roleMap.Keys) {
+    # Generate RW function - keep using the original function
+    $rwFunctionScript = "function global:tp${account}RW { Switch-TeleportAWSRole -Account '$account' -AccessLevel 'RW' }"
+    Invoke-Expression $rwFunctionScript
+    
+    # Generate RO function - use the new function that skips assume-role
+    $roFunctionScript = "function global:tp${account}RO { Switch-TeleportAWSRoleRO -Account '$account' }"
+    Invoke-Expression $roFunctionScript
+    
+    # For backward compatibility, make tp$account point to the RW version
+    $aliasFunctionScript = "function global:tp$account { Switch-TeleportAWSRole -Account '$account' -AccessLevel 'RW' }"
+    Invoke-Expression $aliasFunctionScript
+}
+
 # Set up standard aliases
 Set-Alias -Name taws -Value Get-TeleportAWS
 Set-Alias -Name tawsp -Value Invoke-TeleportAWS
@@ -386,7 +443,7 @@ Set-Alias -Name tkusprod -Value Set-TeleportLoginKubeUSProd
 
 Set-Alias -Name tstat -Value Get-TeleportStatus
 
-#Write-Host "Available tp* functions:" -ForegroundColor Cyan
-#Get-Command -Name tp* | ForEach-Object {
+# Write-Host "Available tp* functions:" -ForegroundColor Cyan
+# Get-Command -Name tp* | ForEach-Object {
 #    Write-Host "$($_.Name)" -ForegroundColor Cyan
-#}
+# }
