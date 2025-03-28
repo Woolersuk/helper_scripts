@@ -1,27 +1,4 @@
-function Add-HostsEntry {
-  param (
-      [string]$hostname
-  )
-  
-  $hostsFilePath = "$env:SystemRoot\System32\drivers\etc\hosts"
-  $ipAddress = "127.0.0.1"
-  
-  if (Test-Path $hostsFilePath) {
-      $existingEntry = Get-Content $hostsFilePath | Where-Object { $_ -like "$ipAddress *$hostname*" }
-      
-      if ($existingEntry) {
-          Write-Host "Entry for $hostname already exists in the hosts file."
-      }
-      else {
-          $newEntry = "$ipAddress $hostname"
-          Add-Content -Path $hostsFilePath -Value $newEntry
-          Write-Host "Entry for $hostname added to the hosts file."
-      }
-  }
-  else {
-      Write-Host "Hosts file not found."
-  }
-}
+function Get-DockerPorts { docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Ports}}" }
 
 # Function to stop all running containers and save their IDs
 function Stop-RunningContainers {
@@ -53,7 +30,7 @@ function Start-AllContainers {
   Write-Host "All containers started."
 }
 
-Set-Alias AHE Add-HostsEntry
+Set-Alias DPorts Get-DockerPorts
 Set-Alias DStopAll Stop-RunningContainers
 Set-Alias DStartAll Start-AllContainers
 Set-Alias DStartStopped Start-PreviouslyRunningContainers

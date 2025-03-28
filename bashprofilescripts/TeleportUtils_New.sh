@@ -101,6 +101,7 @@ alias tla='tsh logout apps'
 alias tlo='tsh logout'
 alias tstat='tsh status'
 alias taws='tsh aws'
+alias tpp='tsh proxy aws --app yl-admin'
 
 # Kubernetes cluster login shortcuts with auto-login
 tkube_login_wrapper() {

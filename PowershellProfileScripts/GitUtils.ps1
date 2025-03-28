@@ -90,6 +90,10 @@ function gitCloneYLRepo {
   git clone https://dev.azure.com/Youlend/Youlend/_git/$i C:\Work\YL.Repos\$i
 }
 
+function RunPreCommit {
+	pre-commit run -a
+}
+
 # Define aliases (PowerShell equivalent to bash aliases)
 Set-Alias gaa "git add -u"
 Set-Alias gat "git ls-files --modified | ForEach-Object { git add $_ }"
@@ -113,3 +117,4 @@ Set-Alias gr "cd (git rev-parse --show-toplevel)"
 Set-Alias grm "git rebase master"
 Set-Alias gs "git status"
 Set-Alias grebase Update-GitBranch-Rebase
+Set-Alias pcra RunPreCommit
