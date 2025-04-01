@@ -411,6 +411,10 @@ function Invoke-TeleportKubeInteractiveLogin {
     tsh kube login $cluster
 }
 
+function Set-TeleportProxy {
+	tsh proxy aws --app yl-admin
+}
+
 # Generate all the tp* shortcut functions dynamically
 foreach ($account in $roleMap.Keys) {
     # Generate RW function - keep using the original function
@@ -426,6 +430,10 @@ foreach ($account in $roleMap.Keys) {
     Invoke-Expression $aliasFunctionScript
 }
 
+function Start-TPPProxy {
+	tawsp login yl-admin --aws-role sudo_admin && tpp
+}
+
 # Set up standard aliases
 Set-Alias -Name taws -Value Get-TeleportAWS
 Set-Alias -Name tawsp -Value Invoke-TeleportAWS
@@ -433,6 +441,7 @@ Set-Alias -Name tkube -Value Invoke-TeleportKube
 Set-Alias -Name tl -Value Set-TeleportLogin
 Set-Alias -Name tla -Value Set-TeleportLogoutApps
 Set-Alias -Name tlo -Value Set-TeleportLogout
+Set-Alias -Name tpp -Value Set-TeleportProxy
 
 Set-Alias -Name tkadmin -Value Set-TeleportLoginKubeAdmin
 Set-Alias -Name tkdev -Value Set-TeleportLoginKubeDev
@@ -442,6 +451,7 @@ Set-Alias -Name tkstaging -Value Set-TeleportLoginKubeStaging
 Set-Alias -Name tkusprod -Value Set-TeleportLoginKubeUSProd
 
 Set-Alias -Name tstat -Value Get-TeleportStatus
+Set-Alias -Name tppadmin -Value Start-TPPProxy
 
 # Write-Host "Available tp* functions:" -ForegroundColor Cyan
 # Get-Command -Name tp* | ForEach-Object {
