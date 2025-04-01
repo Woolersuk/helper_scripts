@@ -103,7 +103,15 @@ function Remove-HostsEntry {
     }
 }
 
+function Azure-Login {
+	$AzureDevOpsPAT = [System.Environment]::GetEnvironmentVariable('PAT')
+	Echo $AzureDevOpsPAT | az devops login
+	az devops configure --defaults organization=https://dev.azure.com/YouLend project=Youlend-Infrastructure
+	Write-Host "Logged into AZ" -Fore Green
+}
+
 Set-Alias AHE Add-HostsEntry
+Set-Alias AZLogin Azure-Login
 Set-Alias RHE Remove-HostsEntry
 Set-Alias addtask AddWorkItemTask -Force
 Set-Alias approvepr ApprovePullRequest -Force
