@@ -101,8 +101,13 @@ alias tla='tsh logout apps'
 alias tlo='tsh logout'
 alias tstat='tsh status'
 alias taws='tsh aws'
-alias tpp='tsh proxy aws --app yl-admin'
-alias tppadmin='tawsp login yl-admin --aws-role sudo_admin && tpp'
+alias tppadmin='tawsp login yl-admin --aws-role sudo_admin && tsh proxy aws --app yl-admin'
+alias tppdev='tawsp login yl-development --aws-role sudo_dev && tsh proxy aws --app yl-development'
+alias tppprod='tawsp login yl-production  --aws-role sudo_prod && tsh proxy aws --app yl-production'
+alias tppusprod='tawsp login yl-usproduction  --aws-role sudo_usprod && tsh proxy aws --app yl-usproduction'
+alias tppsandbox='tawsp login yl-sandbox  --aws-role sudo_sandbox && tsh proxy aws --app yl-sandbox'
+alias tppstaging='tawsp login yl-staging  --aws-role sudo_staging && tsh proxy aws --app yl-staging'
+alias tppusstaging='tawsp login yl-usstaging  --aws-role sudo_usstaging && tsh proxy aws --app yl-usstaging'
 
 # Kubernetes cluster login shortcuts with auto-login
 tkube_login_wrapper() {

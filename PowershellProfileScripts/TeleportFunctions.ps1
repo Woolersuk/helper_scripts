@@ -411,10 +411,6 @@ function Invoke-TeleportKubeInteractiveLogin {
     tsh kube login $cluster
 }
 
-function Set-TeleportProxy {
-	tsh proxy aws --app yl-admin
-}
-
 # Generate all the tp* shortcut functions dynamically
 foreach ($account in $roleMap.Keys) {
     # Generate RW function - keep using the original function
@@ -430,8 +426,39 @@ foreach ($account in $roleMap.Keys) {
     Invoke-Expression $aliasFunctionScript
 }
 
-function Start-TPPProxy {
-	tawsp login yl-admin --aws-role sudo_admin && tpp
+function Start-TPPAdmin {
+	tawsp login yl-admin --aws-role sudo_admin && tsh proxy aws --app yl-admin
+	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
+}
+
+function Start-TPPDev {
+	tawsp login yl-development --aws-role sudo_dev && tsh proxy aws --app yl-development
+	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
+}
+
+function Start-TPPProd {
+	tawsp login yl-production  --aws-role sudo_prod && tsh proxy aws --app yl-production
+	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
+}
+
+function Start-TPPUSProd {
+	tawsp login yl-usproduction  --aws-role sudo_usprod && tsh proxy aws --app yl-usproduction
+	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
+}
+
+function Start-TPPSandbox {
+	tawsp login yl-sandbox  --aws-role sudo_sandbox && tsh proxy aws --app yl-sandbox
+	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
+}
+
+function Start-TPPStaging {
+	tawsp login yl-staging  --aws-role sudo_staging && tsh proxy aws --app yl-staging
+	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
+}
+
+function Start-TPPUSStaging {
+	tawsp login yl-usstaging  --aws-role sudo_usstaging && tsh proxy aws --app yl-usstaging
+	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
 }
 
 # Set up standard aliases
@@ -441,7 +468,6 @@ Set-Alias -Name tkube -Value Invoke-TeleportKube
 Set-Alias -Name tl -Value Set-TeleportLogin
 Set-Alias -Name tla -Value Set-TeleportLogoutApps
 Set-Alias -Name tlo -Value Set-TeleportLogout
-Set-Alias -Name tpp -Value Set-TeleportProxy
 
 Set-Alias -Name tkadmin -Value Set-TeleportLoginKubeAdmin
 Set-Alias -Name tkdev -Value Set-TeleportLoginKubeDev
@@ -451,7 +477,13 @@ Set-Alias -Name tkstaging -Value Set-TeleportLoginKubeStaging
 Set-Alias -Name tkusprod -Value Set-TeleportLoginKubeUSProd
 
 Set-Alias -Name tstat -Value Get-TeleportStatus
-Set-Alias -Name tppadmin -Value Start-TPPProxy
+Set-Alias -Name tppadmin -Value Start-TPPAdmin
+Set-Alias -Name tppdev -Value Start-TPPDev
+Set-Alias -Name tppprod -Value Start-TPPProd
+Set-Alias -Name tppusprod -Value Start-TPPUSProd
+Set-Alias -Name tppsandbox -Value Start-TPPSandbox
+Set-Alias -Name tppstaging -Value Start-TPPStaging
+Set-Alias -Name tppusstaging -Value Start-TPPUSStaging
 
 # Write-Host "Available tp* functions:" -ForegroundColor Cyan
 # Get-Command -Name tp* | ForEach-Object {
