@@ -11,7 +11,7 @@ function gco {
     $BRANCH = gb
     $FUNCTION = $args[0]
     $COMMENT = $args[1..($args.Length - 1)] -join ' '
-    git commit -m "$($FUNCTION): $($BRANCH): $($COMMENT)"
+    git commit -am "$($FUNCTION): $($BRANCH): $($COMMENT)"
 }
 
 # Function nb (git create new branch from master)
