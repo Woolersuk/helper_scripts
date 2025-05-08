@@ -56,93 +56,6 @@ function ListDotNetTemplates {
     }
     Invoke-Expression $Command
 }
-	
-function GetPRStatus {
-    param(
-        [string]$PR
-    )
-    # Get PR data once and convert it
-    $prData = az repos pr show --id $PR | ConvertFrom-Json
-    
-    # Extract required information
-    $PRStat = $prData.status
-    $WorkItem = $prData.workItemRefs.id -join ", "
-    
-    # Set color for PR status
-    $statusColor = switch ($PRStat) {
-        "active" { "Cyan" }
-        "completed" { "Green" }
-        "abandoned" { "DarkGray" }
-        default { "Yellow" }
-    }
-    
-    # Process reviewers' votes
-    $reviewerStatus = @()
-    foreach ($reviewer in $prData.reviewers) {
-        $name = $reviewer.displayName
-        $vote = $reviewer.vote
-        
-        # Determine approval status and color
-        $approvalStatus = switch ($vote) {
-            10 { "Approved" }
-            5  { "Approved with suggestions" }
-            0  { "No vote" }
-            -5 { "Waiting" }
-            -10 { "Rejected" }
-            default { "Unknown" }
-        }
-        
-        # Create reviewer status string with color coding
-        $reviewerStatus += "$($name): $approvalStatus"
-    }
-    
-    $approvalSummary = if ($reviewerStatus) {
-        $reviewerStatus -join ", "
-    } else {
-        "No reviewers"
-    }
-    
-    # Output PR header with status color
-		Write-Host "---------------------------------------------------------------"
-    Write-Host "`tWork Item: $WorkItem | " -NoNewline
-    Write-Host "PR ($PR) Status: " -NoNewline
-		Write-Host "$PRStat" -ForegroundColor $statusColor -NoNewline
-    
-    # Output reviewer section
-    Write-Host "`nReviewers:" -ForegroundColor Green
-    
-    if ($reviewerStatus.Count -eq 0) {
-        Write-Host "  No reviewers assigned" -ForegroundColor Yellow
-    } else {
-        foreach ($reviewer in $prData.reviewers) {
-            $name = $reviewer.displayName
-            $vote = $reviewer.vote
-            
-            # Determine color based on vote
-            $voteColor = switch ($vote) {
-                10 { "Green" }        # Approved
-                5  { "Cyan" }         # Approved with suggestions
-                0  { "Yellow" }       # No vote
-                -5 { "DarkYellow" }   # Waiting
-                -10 { "Red" }         # Rejected
-                default { "Gray" }    # Unknown
-            }
-            
-            $voteText = switch ($vote) {
-                10 { "Approved" }
-                5  { "Approved with suggestions" }
-                0  { "No vote" }
-                -5 { "Waiting" }
-                -10 { "Rejected" }
-                default { "Unknown" }
-            }
-            
-            Write-Host "  $($name): " -NoNewline
-            Write-Host $voteText -ForegroundColor $voteColor
-						Write-Host "---------------------------------------------------------------"
-        }
-    }
-}
 
 function DotNetInstallerFromTemplate {
     param(
@@ -156,7 +69,7 @@ function DotNetInstallerFromTemplate {
     )
 
     # Build Template Name correctly
-    $template = "yl-template-" + $T.ToLower().Replace("yl.", "").Replace(".", "-")
+    $template = "yl-template-" + ($T -replace "^YL\.?", "" -replace "Template\.?", "" -replace "\.", "-").ToLower()
 
     # Build Project Name
     $projectName = "$T.$N"
@@ -184,4 +97,3 @@ Set-Alias DNU DotNetRemover
 Set-Alias Pack DotNetPacker
 Set-Alias Push DotNetPusher
 Set-Alias GetTemplates ListDotNetTemplates
-Set-Alias PRStat GetPRStatus

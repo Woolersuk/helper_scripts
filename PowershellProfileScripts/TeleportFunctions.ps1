@@ -1,14 +1,21 @@
 # Teleport CLI shortcuts for PowerShell
 function Get-TeleportStatus { tsh status }
 function Set-TeleportLogin { tsh login --auth=ad --proxy=youlend.teleport.sh:443 }
-function Set-TeleportLoginKubeAdmin { tsh kube login headquarter-admin-eks-green --proxy=youlend.teleport.sh:443 --auth=ad }
-function Set-TeleportLoginKubeDev { tsh kube login aslive-dev-eks-green --proxy=youlend.teleport.sh:443 --auth=ad }
-function Set-TeleportLoginKubeProd { tsh kube login live-prod-eks-green --proxy=youlend.teleport.sh:443 --auth=ad }
-function Set-TeleportLoginKubeSandbox { tsh kube login aslive-sandbox-eks-green --proxy=youlend.teleport.sh:443 --auth=ad }
-function Set-TeleportLoginKubeStaging { tsh kube login aslive-staging-eks-green --proxy=youlend.teleport.sh:443 --auth=ad }
-function Set-TeleportLoginKubeUSProd { tsh kube login live-usprod-eks-green --proxy=youlend.teleport.sh:443 --auth=ad }
+function Set-TeleportLoginKubeAdmin { tsh kube login headquarter-admin-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
+function Set-TeleportLoginKubeDev { tsh kube login aslive-dev-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
+function Set-TeleportLoginKubeProd { tsh kube login live-prod-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
+function Set-TeleportLoginKubeSandbox { tsh kube login aslive-sandbox-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
+function Set-TeleportLoginKubeStaging { tsh kube login aslive-staging-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
+function Set-TeleportLoginKubeUSProd { tsh kube login live-usprod-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
 function Set-TeleportLogout { tsh logout }
 function Set-TeleportLogoutApps { tsh apps logout }
+function Login-TPAdmin { tl && tsh apps login yl-admin --aws-role sudo_admin }
+function Login-TPDev { tl && tsh apps login yl-development --aws-role sudo_dev }
+function Login-TPProd { tl && tsh apps login yl-production --aws-role sudo_prod }
+function Login-TPUSProd { tl && tsh apps login yl-usproduction --aws-role sudo_usprod }
+function Login-TPSandbox { tl && tsh apps login yl-sandbox --aws-role sudo_sandbox }
+function Login-TPStaging { tl && tsh apps login yl-staging --aws-role sudo_staging }
+function Login-TPUSStaging { tl && tsh apps login yl-usstaging --aws-role sudo_usstaging }
 
 # Helper function to check if user is logged in
 function Test-TeleportLogin {
@@ -27,7 +34,7 @@ function Ensure-TeleportLogin {
             Write-Host "Login failed. Please try manually with 'tl'" -ForegroundColor Red
             return $false
         }
-        Write-Host "Login successful" -ForegroundColor Green
+        Write-Host "Login successful" -ForegroundColor blue
     }
     return $true
 }
@@ -83,7 +90,7 @@ function Switch-TeleportAWSRoleRO {
     Write-Host "Logging into Teleport App: $appName with role: $role" -ForegroundColor Cyan
     tsh apps login $appName --aws-role $role
 
-    Write-Host "Logged Into: $Account - (RO)." -ForegroundColor Green
+    Write-Host "Logged Into: $Account - (RO)." -ForegroundColor blue
 }
 
 # Unified function to login to Teleport app and assume AWS role
@@ -142,7 +149,7 @@ function Switch-TeleportAWSRole {
     $env:AWS_SECRET_ACCESS_KEY = $result.Credentials.SecretAccessKey
     $env:AWS_SESSION_TOKEN = $result.Credentials.SessionToken
 
-    Write-Host "Logged Into: $Account - ($AccessLevel)." -ForegroundColor Green
+    Write-Host "Logged Into: $Account - ($AccessLevel)." -ForegroundColor blue
 }
 
 # Quickly obtain AWS credentials via Teleport
@@ -426,40 +433,124 @@ foreach ($account in $roleMap.Keys) {
     Invoke-Expression $aliasFunctionScript
 }
 
-function Start-TPPAdmin {
-	tawsp login yl-admin --aws-role sudo_admin && tsh proxy aws --app yl-admin
-	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
+function Start-TeleportProxy {
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("admin", "dev", "prod", "usprod", "sandbox", "staging", "usstaging")]
+        [string]$Environment
+    )
+
+    # Mapping environments to roles and apps
+    $envMap = @{
+        admin   	= @{ Role = "sudo_admin";      App = "yl-admin" }
+        dev   		= @{ Role = "sudo_dev";        App = "yl-development" }
+        prod    	= @{ Role = "sudo_prod";       App = "yl-production" }
+        usprod  	= @{ Role = "sudo_usprod";     App = "yl-usproduction" }
+        sandbox   = @{ Role = "sudo_sandbox";    App = "yl-sandbox" }
+        staging   = @{ Role = "sudo_staging";    App = "yl-staging" }
+        usstaging = @{ Role = "sudo_usstaging";  App = "yl-usstaging" }
+    }
+
+    $logPath = "C:\Tmp\tsh_proxy_$Environment.log"
+    $proxyPidFile = "C:\Tmp\tsh_proxy_$Environment.pid"
+    $port = 62000 + (Get-Random -Minimum 100 -Maximum 999)  # Random-ish but predictable range
+    $timeoutSeconds = 10
+    $startTime = Get-Date
+
+    $role = $envMap[$Environment].Role
+    $app = $envMap[$Environment].App
+
+    Write-Host "Logging into $Environment (role: $role, app: $app)..."
+
+    # Run the login
+    & tawsp login $app --aws-role $role
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "tawsp login failed. Aborting proxy startup."
+        return
+    }
+
+    # Clean previous log and PID
+    if (Test-Path $logPath) { Remove-Item $logPath }
+    if (Test-Path $proxyPidFile) { Remove-Item $proxyPidFile }
+
+    # Start proxy in background
+    $proxyProcess = Start-Process powershell -ArgumentList "-NoExit", "-Command", "tsh proxy aws --app $app --port $port | Tee-Object -FilePath '$logPath'" -WindowStyle Hidden -PassThru
+    $proxyProcess.Id | Out-File $proxyPidFile
+
+    # Wait for log to contain credentials
+		while (
+				(
+						(-not (Test-Path $logPath)) -or 
+						(-not ((Get-Content $logPath -Raw) -match 'AWS_ACCESS_KEY_ID='))
+				) -and ((Get-Date) - $startTime).TotalSeconds -lt $timeoutSeconds
+		) {
+				Start-Sleep -Seconds 2
+		}
+
+    if (-not (Test-Path $logPath)) {
+        Write-Error "Log file not created. Proxy may have failed to start."
+        return
+    }
+
+    $output = Get-Content $logPath -Raw
+
+    if ($output -match 'AWS_ACCESS_KEY_ID="([^"]+)"') {
+        $env:AWS_ACCESS_KEY_ID = $matches[1]
+    }
+    if ($output -match 'AWS_SECRET_ACCESS_KEY="([^"]+)"') {
+        $env:AWS_SECRET_ACCESS_KEY = $matches[1]
+    }
+    if ($output -match 'AWS_CA_BUNDLE="([^"]+)"') {
+        $env:AWS_CA_BUNDLE = $matches[1]
+    }
+    if ($output -match 'HTTPS_PROXY="([^"]+)"') {
+        $env:HTTPS_PROXY = $matches[1]
+    }
+
+    Write-Host "[$Environment] Teleport proxy running on port $port. AWS credentials set - kill the session when finished with stop$($Environment)"
 }
 
-function Start-TPPDev {
-	tawsp login yl-development --aws-role sudo_dev && tsh proxy aws --app yl-development
-	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
+function Stop-TeleportProxy {
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("dev", "prod", "usprod", "sandbox", "staging", "usstaging")]
+        [string]$Environment
+    )
+
+    $proxyPidFile = "C:\Tmp\tsh_proxy_$Environment.pid"
+
+    if (Test-Path $proxyPidFile) {
+        $proxyPid = Get-Content $proxyPidFile
+        try {
+            Stop-Process -Id $proxyPid -Force
+            Write-Host "Stopped Teleport proxy for $Environment (PID $proxyPid)."
+        } catch {
+            Write-Warning "Failed to stop process with PID $proxyPid. It may have already exited."
+        } finally {
+            Remove-Item $proxyPidFile -ErrorAction SilentlyContinue
+        }
+    } else {
+        Write-Warning "No saved proxy PID found for $Environment."
+    }
 }
 
-function Start-TPPProd {
-	tawsp login yl-production  --aws-role sudo_prod && tsh proxy aws --app yl-production
-	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
-}
 
-function Start-TPPUSProd {
-	tawsp login yl-usproduction  --aws-role sudo_usprod && tsh proxy aws --app yl-usproduction
-	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
-}
+function Start-TPPAdmin { Start-TeleportProxy -Environment admin }
+function Start-TPPDev { Start-TeleportProxy -Environment dev }
+function Start-TPPProd { Start-TeleportProxy -Environment prod }
+function Start-TPPUSProd { Start-TeleportProxy -Environment usprod }
+function Start-TPPSandbox { Start-TeleportProxy -Environment sandbox }
+function Start-TPPStaging { Start-TeleportProxy -Environment staging }
+function Start-TPPUSStaging { Start-TeleportProxy -Environment usstaging }
 
-function Start-TPPSandbox {
-	tawsp login yl-sandbox  --aws-role sudo_sandbox && tsh proxy aws --app yl-sandbox
-	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
-}
-
-function Start-TPPStaging {
-	tawsp login yl-staging  --aws-role sudo_staging && tsh proxy aws --app yl-staging
-	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
-}
-
-function Start-TPPUSStaging {
-	tawsp login yl-usstaging  --aws-role sudo_usstaging && tsh proxy aws --app yl-usstaging
-	Write-Host "Copy & Paste the keys to a new window, now you can run PSStuff..." -Fore Green
-}
+function Stop-TPPAdmin { Stop-TeleportProxy -Environment admin }
+function Stop-TPPDev { Stop-TeleportProxy -Environment dev }
+function Stop-TPPProd { Stop-TeleportProxy -Environment prod }
+function Stop-TPPUSProd { Stop-TeleportProxy -Environment usprod }
+function Stop-TPPSandbox { Stop-TeleportProxy -Environment sandbox }
+function Stop-TPPStaging { Stop-TeleportProxy -Environment staging }
+function Stop-TPPUSStaging { Stop-TeleportProxy -Environment usstaging }
 
 # Set up standard aliases
 Set-Alias -Name taws -Value Get-TeleportAWS
@@ -485,7 +576,41 @@ Set-Alias -Name tppsandbox -Value Start-TPPSandbox
 Set-Alias -Name tppstaging -Value Start-TPPStaging
 Set-Alias -Name tppusstaging -Value Start-TPPUSStaging
 
+Set-Alias -Name tpadmin -Value Login-TPAdmin
+Set-Alias -Name tpdev -Value Login-TPDev
+Set-Alias -Name tpprod -Value Login-TPProd
+Set-Alias -Name tpusprod -Value Login-TPUSProd
+Set-Alias -Name tpsandbox -Value Login-TPSandbox
+Set-Alias -Name tpstaging -Value Login-TPStaging
+Set-Alias -Name tpusstaging -Value Login-TPUSStaging
+
+Set-Alias -Name stopadmin -Value Stop-TPPAdmin
+Set-Alias -Name stopdev -Value Stop-TPPDev
+Set-Alias -Name stopprod -Value Stop-TPPProd
+Set-Alias -Name stopusprod -Value Stop-TPPUSProd
+Set-Alias -Name stopsandbox -Value Stop-TPPSandbox
+Set-Alias -Name stopstaging -Value Stop-TPPStaging
+Set-Alias -Name stopusstaging -Value Stop-TPPUSStaging
+
 # Write-Host "Available tp* functions:" -ForegroundColor Cyan
 # Get-Command -Name tp* | ForEach-Object {
 #    Write-Host "$($_.Name)" -ForegroundColor Cyan
 # }
+
+function Show-TeleportAliasPatterns {
+    $patterns = @(
+        @{ Alias = "tl";          Description = "Teleport Login (base command)" }
+        @{ Alias = "tp[env]";     Description = "Login to Teleport as sudo_[env]" }
+        @{ Alias = "tpp[env]";    Description = "Start a Teleport proxy for [env]" }
+        @{ Alias = "stop[env]";   Description = "Stop a Teleport proxy for [env]" }
+        @{ Alias = "tk[env]";     Description = "Login to Kubernetes cluster for [env]" }
+        @{ Alias = "tkube";       Description = "Run a generic Kube command via Teleport" }
+        @{ Alias = "tla / tlo";   Description = "Logout from all apps or all Teleport sessions" }
+    )
+
+    foreach ($item in $patterns) {
+        Write-Host ("{0,-12}  - {1}" -f $item.Alias, $item.Description) -ForegroundColor Green
+    }
+}
+
+#aws sts assume-role <tsh role>

@@ -195,26 +195,76 @@ function CompletePRRequest {
         [string]$PR,
         [switch]$CompleteWi
     )
+
     $params = @(
-        'repos pr update'
-        "--id $PR"
-        '--status completed'
+        'repos'
+        'pr'
+        'update'
+        '--id'
+        $PR
+        '--status'
+        'completed'
     )
+
     if ($CompleteWi) {
         $params += '--transition-work-items'
     }
+
     az @params
 }
 
-function Azure-Login {
+function Azure-LoginInf {
 	$AzureDevOpsPAT = [System.Environment]::GetEnvironmentVariable('PAT')
 	Echo $AzureDevOpsPAT | az devops login
 	az devops configure --defaults organization=https://dev.azure.com/YouLend project=Youlend-Infrastructure
-	Write-Host "Logged into AZ" -Fore Green
+	Write-Host "Logged into AZ (YL Inf)" -Fore Green
+}
+
+function Azure-LoginYL {
+	$AzureDevOpsPAT = [System.Environment]::GetEnvironmentVariable('PAT')
+	Echo $AzureDevOpsPAT | az devops login
+	az devops configure --defaults organization=https://dev.azure.com/YouLend project=Youlend
+	Write-Host "Logged into AZ (YL)" -Fore Green
+}
+
+function RoboCleaner {
+    param(
+        [string]$Fol
+    )	
+	robocopy c:\Z_Empty_Fol $Fol /purge
+}
+
+function Get-Tree($Path,$Include='*') { 
+    @(Get-Item $Path -Include $Include -Force) + 
+        (Get-ChildItem $Path -Recurse -Include $Include -Force) | 
+        sort pspath -Descending -unique
+} 
+
+function Remove-Tree($Path)
+{ 
+    Remove-Item $Path -force -Recurse -Confirm:$false -ErrorAction silentlycontinue
+    if (Test-Path "$Path\" -ErrorAction silentlycontinue)
+    {
+        $folders = Get-ChildItem -Path $Path –Directory -Force -Confirm:$false
+        ForEach ($folder in $folders)
+        {
+            Remove-Tree $folder.FullName -Confirm:$false
+        }
+        $files = Get-ChildItem -Path $Path -File -Force -Confirm:$false
+        ForEach ($file in $files)
+        {
+            Remove-Item $file.FullName -force -Confirm:$false
+        }
+        if (Test-Path "$Path\" -ErrorAction silentlycontinue)
+        {
+            Remove-Item $Path -force -Confirm:$false
+        }
+    }
 }
 
 Set-Alias AHE Add-HostsEntry
-Set-Alias AZLogin Azure-Login
+Set-Alias AZLoginInf Azure-LoginInf
+Set-Alias AZLoginYL Azure-LoginYL
 Set-Alias RHE Remove-HostsEntry
 Set-Alias addtask AddWorkItemTask -Force
 Set-Alias approvepr ApprovePullRequest -Force
@@ -238,5 +288,6 @@ Set-Alias rdpb StartRDBuild -Force
 Set-Alias rdt StartRDBuild2 -Force
 Set-Alias rebootit RebootInstance -Force
 Set-Alias removemepr removeMeasReviewer -Force
+Set-Alias roboclean RoboCleaner
 Set-Alias vmlan ChangeVMToLan -Force
 Set-Alias vmwifi ChangeVMToWifi -Force

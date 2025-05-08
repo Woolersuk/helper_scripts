@@ -5,23 +5,12 @@ foreach ($script in $scriptFiles) {
   . $script.FullName
 }
 Set-Alias ~ (Get-Variable HOME).Value
-$myPat = "tokenhere"
+$myPat = "2uHVUzz9TtXtZo99Hm6A9JFgxjCQ4LfcHEEoZDxZYeIRCLjS0cbWJQQJ99BCACAAAAAO2tJ0AAASAZDO3eoS"
 $env:Pat = $myPat
 function writeTMPwd {
-	Write-Host "TMPWD = not_here" -Fore Green
+	Write-Host "TMPWD = xRrAY&XeMPJPL6NUBgf2i;Biy5knuEnp" -Fore Green
 }
-#tplogin
-#tsh apps login yl-admin --aws-role sudo_admin
-#tsh apps login yl-production --aws-role sudo_prod
-#tsh apps login yl-usproduction --aws-role sudo_usprod
-#tsh apps login yl-sandbox --aws-role sudo_sandbox
-#tsh apps login yl-staging --aws-role sudo_staging
-#tsh apps login yl-development --aws-role sudo_dev
-#Write-Host "Using Profile: $ENV:AWS_PROFILE" -Fore Yellow
-#Write-Host "/////////////////////// Teleport Shortcuts" -Fore Yellow
-#(get-alias taw*).DisplayName
-#(get-alias tl*).DisplayName
-#(get-alias tk*).DisplayName
+
 kubectl completion powershell | Out-String | Invoke-Expression
 Set-Alias -Name tmpwd -Value writeTMPwd
 function Show-DailyGreeting {
@@ -38,3 +27,4 @@ function Show-DailyGreeting {
 }
 
 Show-DailyGreeting
+Show-TeleportAliasPatterns
