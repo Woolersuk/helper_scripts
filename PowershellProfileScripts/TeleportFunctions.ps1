@@ -460,9 +460,9 @@ function Start-TeleportProxy {
     $role = $envMap[$Environment].Role
     $app = $envMap[$Environment].App
 
-    Write-Host "Logging into $Environment (role: $role, app: $app)..."
-
     # Run the login
+		& tsh apps logout
+    Write-Host "Logging into $Environment (role: $role, app: $app)..."
     & tawsp login $app --aws-role $role
 
     if ($LASTEXITCODE -ne 0) {
@@ -508,13 +508,13 @@ function Start-TeleportProxy {
         $env:HTTPS_PROXY = $matches[1]
     }
 
-    Write-Host "[$Environment] Teleport proxy running on port $port. AWS credentials set - kill the session when finished with stop$($Environment)"
+    Write-Host "[$Environment] Teleport proxy running on port $port. AWS credentials set - kill the session when finished with stop$($Environment)" -Fore Yellow
 }
 
 function Stop-TeleportProxy {
     param (
         [Parameter(Mandatory=$true)]
-        [ValidateSet("dev", "prod", "usprod", "sandbox", "staging", "usstaging")]
+        [ValidateSet("admin", "dev", "prod", "usprod", "sandbox", "staging", "usstaging")]
         [string]$Environment
     )
 
