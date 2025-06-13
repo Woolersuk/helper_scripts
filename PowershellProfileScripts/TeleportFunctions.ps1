@@ -4,18 +4,18 @@ function Set-TeleportLogin { tsh login --auth=ad --proxy=youlend.teleport.sh:443
 function Set-TeleportLoginKubeAdmin { tsh kube login headquarter-admin-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
 function Set-TeleportLoginKubeDev { tsh kube login aslive-dev-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
 function Set-TeleportLoginKubeProd { tsh kube login live-prod-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
-function Set-TeleportLoginKubeSandbox { tsh kube login aslive-sandbox-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
+function Set-TeleportLoginKubeSandbox { tsh kube login aslive-sandbox-eks-green --proxy=youlend.teleport.sh:443 --auth=ad }
 function Set-TeleportLoginKubeStaging { tsh kube login aslive-staging-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
 function Set-TeleportLoginKubeUSProd { tsh kube login live-usprod-eks-blue --proxy=youlend.teleport.sh:443 --auth=ad }
 function Set-TeleportLogout { tsh logout }
 function Set-TeleportLogoutApps { tsh apps logout }
-function Login-TPAdmin { tl && tsh apps login yl-admin --aws-role sudo_admin }
-function Login-TPDev { tl && tsh apps login yl-development --aws-role sudo_dev }
-function Login-TPProd { tl && tsh apps login yl-production --aws-role sudo_prod }
-function Login-TPUSProd { tl && tsh apps login yl-usproduction --aws-role sudo_usprod }
-function Login-TPSandbox { tl && tsh apps login yl-sandbox --aws-role sudo_sandbox }
-function Login-TPStaging { tl && tsh apps login yl-staging --aws-role sudo_staging }
-function Login-TPUSStaging { tl && tsh apps login yl-usstaging --aws-role sudo_usstaging }
+function LoginTPAdmin { tl && tsh apps login yl-admin --aws-role sudo_admin }
+function LoginTPDev { tl && tsh apps login yl-development --aws-role sudo_dev }
+function LoginTPProd { tl && tsh apps login yl-production --aws-role sudo_prod }
+function LoginTPUSProd { tl && tsh apps login yl-usproduction --aws-role sudo_usprod }
+function LoginTPSandbox { tl && tsh apps login yl-sandbox --aws-role sudo_sandbox }
+function LoginTPStaging { tl && tsh apps login yl-staging --aws-role sudo_staging }
+function LoginTPUSStaging { tl && tsh apps login yl-usstaging --aws-role sudo_usstaging }
 
 # Helper function to check if user is logged in
 function Test-TeleportLogin {
@@ -24,7 +24,7 @@ function Test-TeleportLogin {
 }
 
 # Helper function to ensure user is logged in before executing commands
-function Ensure-TeleportLogin {
+function EnsureTeleportLogin {
     if (-not (Test-TeleportLogin)) {
         Write-Host "Not logged in to Teleport. Logging in now..." -ForegroundColor Yellow
         Set-TeleportLogin
@@ -55,12 +55,12 @@ $roleMap = @{
 # Function specifically for RO access that doesn't attempt to assume role
 function Switch-TeleportAWSRoleRO {
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$Account
     )
 
     # Ensure user is logged in
-    if (-not (Ensure-TeleportLogin)) {
+    if (-not (EnsureTeleportLogin)) {
         return
     }
 
@@ -96,7 +96,7 @@ function Switch-TeleportAWSRoleRO {
 # Unified function to login to Teleport app and assume AWS role
 function Switch-TeleportAWSRole {
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$Account,
         
         [Parameter()]
@@ -105,7 +105,7 @@ function Switch-TeleportAWSRole {
     )
 
     # Ensure user is logged in
-    if (-not (Ensure-TeleportLogin)) {
+    if (-not (EnsureTeleportLogin)) {
         return
     }
 
@@ -155,7 +155,7 @@ function Switch-TeleportAWSRole {
 # Quickly obtain AWS credentials via Teleport
 function Get-TeleportAWS { 
     # Ensure user is logged in
-    if (Ensure-TeleportLogin) {
+    if (EnsureTeleportLogin) {
         tsh aws 
     }
 }
@@ -177,7 +177,7 @@ function Invoke-TeleportKube {
     )
 
     # Ensure user is logged in
-    if (-not (Ensure-TeleportLogin)) {
+    if (-not (EnsureTeleportLogin)) {
         return
     }
 
@@ -197,8 +197,7 @@ function Invoke-TeleportKube {
         "login" {
             if ($Arguments -and $Arguments[0] -eq "-c") {
                 Invoke-TeleportKubeInteractiveLogin
-            }
-            else {
+            } else {
                 tsh kube login $Arguments
             }
         }
@@ -229,7 +228,7 @@ function Invoke-TeleportAWS {
     )
 
     # Ensure user is logged in
-    if (-not (Ensure-TeleportLogin)) {
+    if (-not (EnsureTeleportLogin)) {
         return
     }
 
@@ -248,8 +247,7 @@ function Invoke-TeleportAWS {
         "login" {
             if ($Arguments -and $Arguments[0] -eq "-c") {
                 Invoke-TeleportAWSInteractiveLogin
-            }
-            else {
+            } else {
                 tsh apps login $Arguments
             }
             return
@@ -264,7 +262,7 @@ function Invoke-TeleportAWS {
 # Helper function for interactive app login with AWS role selection
 function Invoke-TeleportAWSInteractiveLogin {
     # Ensure user is logged in
-    if (-not (Ensure-TeleportLogin)) {
+    if (-not (EnsureTeleportLogin)) {
         return
     }
 
@@ -277,7 +275,7 @@ function Invoke-TeleportAWSInteractiveLogin {
 
     $lines = $output -split "`n"
     $header = $lines[0..1]
-    $apps = $lines[2..($lines.Length-1)]
+    $apps = $lines[2..($lines.Length - 1)]
 
     if (-not $apps) {
         Write-Host "No apps available."
@@ -286,7 +284,7 @@ function Invoke-TeleportAWSInteractiveLogin {
 
     # Display header and numbered list of apps
     $header | ForEach-Object { Write-Host $_ }
-    $apps | Where-Object { $_ -match '\S' } | ForEach-Object -Begin {$i=1} -Process {
+    $apps | Where-Object { $_ -match '\S' } | ForEach-Object -Begin { $i = 1 } -Process {
         Write-Host ("{0,2}. {1}" -f $i++, $_)
     }
 
@@ -320,7 +318,7 @@ function Invoke-TeleportAWSInteractiveLogin {
     $loginOutput = tsh apps login $app 2>&1
 
     # Extract the AWS roles section
-    $roleSection = $loginOutput | Select-String -Pattern "Available AWS roles:" -Context 0,20
+    $roleSection = $loginOutput | Select-String -Pattern "Available AWS roles:" -Context 0, 20
     if (-not $roleSection) {
         Write-Host "No AWS roles info found. Attempting direct login..."
         tsh apps login $app
@@ -329,7 +327,7 @@ function Invoke-TeleportAWSInteractiveLogin {
 
     $roleLines = $roleSection.Context.PostContext | Where-Object { $_ -match '\S' -and $_ -notmatch 'ERROR:' }
     $roleHeader = $roleLines[0..1]
-    $rolesList = $roleLines[2..($roleLines.Length-1)]
+    $rolesList = $roleLines[2..($roleLines.Length - 1)]
 
     if (-not $rolesList) {
         Write-Host "No roles found in the AWS roles listing."
@@ -340,7 +338,7 @@ function Invoke-TeleportAWSInteractiveLogin {
 
     Write-Host "Available AWS roles:"
     $roleHeader | ForEach-Object { Write-Host $_ }
-    $rolesList | ForEach-Object -Begin {$i=1} -Process {
+    $rolesList | ForEach-Object -Begin { $i = 1 } -Process {
         Write-Host ("{0,2}. {1}" -f $i++, $_)
     }
 
@@ -370,7 +368,7 @@ function Invoke-TeleportAWSInteractiveLogin {
 # Helper function for interactive Kubernetes login
 function Invoke-TeleportKubeInteractiveLogin {
     # Ensure user is logged in
-    if (-not (Ensure-TeleportLogin)) {
+    if (-not (EnsureTeleportLogin)) {
         return
     }
 
@@ -382,7 +380,7 @@ function Invoke-TeleportKubeInteractiveLogin {
 
     $lines = $output -split "`n"
     $header = $lines[0..1]
-    $clusters = $lines[2..($lines.Length-1)]
+    $clusters = $lines[2..($lines.Length - 1)]
 
     if (-not $clusters) {
         Write-Host "No Kubernetes clusters available."
@@ -391,18 +389,25 @@ function Invoke-TeleportKubeInteractiveLogin {
 
     # Show header and numbered list of clusters
     $header | ForEach-Object { Write-Host $_ }
-    $clusterList = $clusters | Where-Object { $_ -match '\S' } | ForEach-Object -Begin {$i=1} -Process {
+    $clusterList = $clusters | Where-Object { $_ -match '\S' } | ForEach-Object -Begin { $i = 1 } -Process {
         Write-Host ("{0,2}. {1}" -f $i++, $_)
     }
 
     # Prompt for selection
     $choice = Read-Host "Choose cluster to login (number)"
-    if (-not $choice) {
-        Write-Host "No selection made. Exiting."
+    if (-not ($choice -as [int])) {
+        Write-Host "Invalid input. Please enter a number."
         return 1
     }
 
-    $chosenLine = $clusters[$choice - 1]
+    $index = [int]$choice - 1
+    if ($index -lt 0 -or $index -ge $clusters.Count) {
+        Write-Host "Invalid selection. Number out of range."
+        return 1
+    }
+
+    $chosenLine = $clusters[$index]
+
     if (-not $chosenLine) {
         Write-Host "Invalid selection."
         return 1
@@ -435,25 +440,26 @@ foreach ($account in $roleMap.Keys) {
 
 function Start-TeleportProxy {
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateSet("admin", "dev", "prod", "usprod", "sandbox", "staging", "usstaging")]
         [string]$Environment
     )
 
     # Mapping environments to roles and apps
     $envMap = @{
-        admin   	= @{ Role = "sudo_admin";      App = "yl-admin" }
-        dev   		= @{ Role = "sudo_dev";        App = "yl-development" }
-        prod    	= @{ Role = "sudo_prod";       App = "yl-production" }
-        usprod  	= @{ Role = "sudo_usprod";     App = "yl-usproduction" }
-        sandbox   = @{ Role = "sudo_sandbox";    App = "yl-sandbox" }
-        staging   = @{ Role = "sudo_staging";    App = "yl-staging" }
-        usstaging = @{ Role = "sudo_usstaging";  App = "yl-usstaging" }
+        admin     = @{ Role = "sudo_admin"; App = "yl-admin" }
+        dev       = @{ Role = "sudo_dev"; App = "yl-development" }
+        prod      = @{ Role = "sudo_prod"; App = "yl-production" }
+        usprod    = @{ Role = "sudo_usprod"; App = "yl-usproduction" }
+        sandbox   = @{ Role = "sudo_sandbox"; App = "yl-sandbox" }
+        staging   = @{ Role = "sudo_staging"; App = "yl-staging" }
+        usstaging = @{ Role = "sudo_usstaging"; App = "yl-usstaging" }
     }
 
     $logPath = "C:\Tmp\tsh_proxy_$Environment.log"
     $proxyPidFile = "C:\Tmp\tsh_proxy_$Environment.pid"
-    $port = 62000 + (Get-Random -Minimum 100 -Maximum 999)  # Random-ish but predictable range
+    $port = 8000 + (Get-Random -Minimum 100 -Maximum 999)  # Random-ish but predictable range
+    #$port = 9000 #fixed port
     $timeoutSeconds = 10
     $startTime = Get-Date
 
@@ -461,7 +467,7 @@ function Start-TeleportProxy {
     $app = $envMap[$Environment].App
 
     # Run the login
-		& tsh apps logout
+    & tsh apps logout
     Write-Host "Logging into $Environment (role: $role, app: $app)..."
     & tawsp login $app --aws-role $role
 
@@ -479,14 +485,14 @@ function Start-TeleportProxy {
     $proxyProcess.Id | Out-File $proxyPidFile
 
     # Wait for log to contain credentials
-		while (
-				(
+    while (
+        (
 						(-not (Test-Path $logPath)) -or 
 						(-not ((Get-Content $logPath -Raw) -match 'AWS_ACCESS_KEY_ID='))
-				) -and ((Get-Date) - $startTime).TotalSeconds -lt $timeoutSeconds
-		) {
-				Start-Sleep -Seconds 2
-		}
+        ) -and ((Get-Date) - $startTime).TotalSeconds -lt $timeoutSeconds
+    ) {
+        Start-Sleep -Seconds 2
+    }
 
     if (-not (Test-Path $logPath)) {
         Write-Error "Log file not created. Proxy may have failed to start."
@@ -513,7 +519,7 @@ function Start-TeleportProxy {
 
 function Stop-TeleportProxy {
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateSet("admin", "dev", "prod", "usprod", "sandbox", "staging", "usstaging")]
         [string]$Environment
     )
@@ -576,13 +582,13 @@ Set-Alias -Name tppsandbox -Value Start-TPPSandbox
 Set-Alias -Name tppstaging -Value Start-TPPStaging
 Set-Alias -Name tppusstaging -Value Start-TPPUSStaging
 
-Set-Alias -Name tpadmin -Value Login-TPAdmin
-Set-Alias -Name tpdev -Value Login-TPDev
-Set-Alias -Name tpprod -Value Login-TPProd
-Set-Alias -Name tpusprod -Value Login-TPUSProd
-Set-Alias -Name tpsandbox -Value Login-TPSandbox
-Set-Alias -Name tpstaging -Value Login-TPStaging
-Set-Alias -Name tpusstaging -Value Login-TPUSStaging
+Set-Alias -Name tpadmin -Value LoginTPAdmin
+Set-Alias -Name tpdev -Value LoginTPDev
+Set-Alias -Name tpprod -Value LoginTPProd
+Set-Alias -Name tpusprod -Value LoginTPUSProd
+Set-Alias -Name tpsandbox -Value LoginTPSandbox
+Set-Alias -Name tpstaging -Value LoginTPStaging
+Set-Alias -Name tpusstaging -Value LoginTPUSStaging
 
 Set-Alias -Name stopadmin -Value Stop-TPPAdmin
 Set-Alias -Name stopdev -Value Stop-TPPDev
@@ -599,13 +605,13 @@ Set-Alias -Name stopusstaging -Value Stop-TPPUSStaging
 
 function Show-TeleportAliasPatterns {
     $patterns = @(
-        @{ Alias = "tl";          Description = "Teleport Login (base command)" }
-        @{ Alias = "tp[env]";     Description = "Login to Teleport as sudo_[env]" }
-        @{ Alias = "tpp[env]";    Description = "Start a Teleport proxy for [env]" }
-        @{ Alias = "stop[env]";   Description = "Stop a Teleport proxy for [env]" }
-        @{ Alias = "tk[env]";     Description = "Login to Kubernetes cluster for [env]" }
-        @{ Alias = "tkube";       Description = "Run a generic Kube command via Teleport" }
-        @{ Alias = "tla / tlo";   Description = "Logout from all apps or all Teleport sessions" }
+        @{ Alias = "tl"; Description = "Teleport Login (base command)" }
+        @{ Alias = "tp[env]"; Description = "Login to Teleport as sudo_[env]" }
+        @{ Alias = "tpp[env]"; Description = "Start a Teleport proxy for [env]" }
+        @{ Alias = "stop[env]"; Description = "Stop a Teleport proxy for [env]" }
+        @{ Alias = "tk[env]"; Description = "Login to Kubernetes cluster for [env]" }
+        @{ Alias = "tkube"; Description = "Run a generic Kube command via Teleport" }
+        @{ Alias = "tla / tlo"; Description = "Logout from all apps or all Teleport sessions" }
     )
 
     foreach ($item in $patterns) {

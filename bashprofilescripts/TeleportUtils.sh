@@ -1,23 +1,132 @@
-# Teleport CLI shortcuts
-alias tpadmin='tsh proxy aws --app yl-admin'
-alias tpdev='tsh proxy aws --app yl-development'
-alias tpstage='tsh proxy aws --app yl-staging'
-alias tpsandbox='tsh proxy aws --app yl-sandbox'
-alias tpprod='tsh proxy aws --app yl-production'
-alias tpusprod='tsh proxy aws --app yl-usproduction'
+#!/bin/bash
 
+# ======== CONFIGURATION ========
+declare -A ROLE_MAP_RO=(
+  [admin]="headquarter-admin-eks-blue"
+  [dev]="aslive-dev-eks-blue"
+  [prod]="live-prod-eks-blue"
+  [sandbox]="aslive-sandbox-eks-blue"
+  [staging]="aslive-staging-eks-blue"
+  [usprod]="live-usprod-eks-blue"
+)
 
-# Easily log in to your Teleport cluster
-alias tl='tsh login --auth=ad --proxy=youlend.teleport.sh:443'
-alias tla='tsh logout apps'
-alias tlo='tsh logout'
+declare -A ENV_CONFIG=(
+  [admin]="sudo_admin yl-admin 937787910409"
+  [dev]="sudo_dev yl-development 777909771556"
+  [prod]="sudo_prod yl-prod 902371465413"
+  [sandbox]="sudo_sandbox yl-sandbox 517395983949"
+  [staging]="sudo_staging yl-staging 871980946913"
+  [usprod]="sudo_usprod yl-usprod 359939295825"
+  [usstaging]="sudo_usstaging yl-usstaging 973302516471"
+)
 
-alias tkadmin='tsh kube login headquarter-admin-eks-green --proxy=youlend.teleport.sh:443 --auth=ad'
-alias tkdev='tsh kube login aslive-dev-eks-green --proxy=youlend.teleport.sh:443 --auth=ad'
-alias tkprod='tsh kube login live-prod-eks-green --proxy=youlend.teleport.sh:443 --auth=ad'
-alias tksandbox='tsh kube login aslive-sandbox-eks-green --proxy=youlend.teleport.sh:443 --auth=ad'
-alias tkstaging='tsh kube login aslive-staging-eks-green --proxy=youlend.teleport.sh:443 --auth=ad'
-alias tkusprod='tsh kube login live-usprod-eks-green --proxy=youlend.teleport.sh:443 --auth=ad'
+PROXY="youlend.teleport.sh:443"
+
+# ======== FUNCTIONS ========
+
+tsh_status() {
+  tsh status
+}
+
+teleport_login() {
+  tsh login --auth=ad --proxy=$PROXY
+}
+
+teleport_logout() {
+  tsh logout
+}
+
+teleport_apps_logout() {
+  tsh apps logout
+}
+
+login_kube_env() {
+  local env="$1"
+  cluster="${ROLE_MAP_RO[$env]}"
+  tsh kube login "$cluster" --proxy=$PROXY --auth=ad
+}
+
+aws_role_login() {
+  local account="$1"
+  local level="$2"
+
+  read -r ROLE APP ACCOUNT_ID <<< "${ENV_CONFIG[$account]}"
+
+  if [[ "$level" == "RO" ]]; then
+		tsh apps logout >/dev/null 2>&1
+    echo "[INFO] Logging in (RO) to $APP with role $ROLE"
+    tsh apps login "$APP" --aws-role "$ROLE"
+    return
+  fi
+
+  echo "[INFO] Logging in (RW) to $APP with role $ROLE"
+  tsh apps login "$APP" --aws-role "$ROLE"
+  creds=$(tsh aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/$ROLE" --role-session-name "$ROLE")
+
+  export AWS_ACCESS_KEY_ID=$(echo "$creds" | jq -r .Credentials.AccessKeyId)
+  export AWS_SECRET_ACCESS_KEY=$(echo "$creds" | jq -r .Credentials.SecretAccessKey)
+  export AWS_SESSION_TOKEN=$(echo "$creds" | jq -r .Credentials.SessionToken)
+}
+
+start_teleport_proxy() {
+  local env="$1"
+  read -r ROLE APP ACCOUNT_ID <<< "${ENV_CONFIG[$env]}"
+
+  LOG_PATH="/tmp/tsh_proxy_$env.log"
+  PID_FILE="/tmp/tsh_proxy_$env.pid"
+  PORT=$((62000 + RANDOM % 1000))
+
+  echo "[INFO] Logging into $APP with role $ROLE..."
+  tsh apps logout >/dev/null 2>&1
+  tsh apps login "$APP" --aws-role "$ROLE"
+
+  nohup tsh proxy aws --app "$APP" --port "$PORT" > "$LOG_PATH" 2>&1 &
+  echo $! > "$PID_FILE"
+
+  echo "[INFO] Proxy started on port $PORT. Logs: $LOG_PATH"
+}
+
+stop_teleport_proxy() {
+  local env="$1"
+  PID_FILE="/tmp/tsh_proxy_$env.pid"
+
+  if [[ -f "$PID_FILE" ]]; then
+    PID=$(cat "$PID_FILE")
+    kill "$PID" && echo "[INFO] Proxy for $env stopped." || echo "[WARN] Failed to stop process."
+    rm -f "$PID_FILE"
+  else
+    echo "[WARN] No proxy PID file for $env."
+  fi
+}
+
+# ======== ALIASES ========
+alias tl=teleport_login
+alias tlo=teleport_logout
+alias tla=teleport_apps_logout
+alias tstat=tsh_status
+
+alias tkadmin='login_kube_env admin'
+alias tkdev='login_kube_env dev'
+alias tkprod='login_kube_env prod'
+alias tksandbox='login_kube_env sandbox'
+alias tkstaging='login_kube_env staging'
+alias tkusprod='login_kube_env usprod'
+
+alias tppadmin='start_teleport_proxy admin'
+alias tppdev='start_teleport_proxy dev'
+alias tppprod='start_teleport_proxy prod'
+alias tppusprod='start_teleport_proxy usprod'
+alias tppsandbox='start_teleport_proxy sandbox'
+alias tppstaging='start_teleport_proxy staging'
+alias tppusstaging='start_teleport_proxy usstaging'
+
+alias stopadmin='stop_teleport_proxy admin'
+alias stopdev='stop_teleport_proxy dev'
+alias stopprod='stop_teleport_proxy prod'
+alias stopusprod='stop_teleport_proxy usprod'
+alias stopsandbox='stop_teleport_proxy sandbox'
+alias stopstaging='stop_teleport_proxy staging'
+alias stopusstaging='stop_teleport_proxy usstaging'
 
 # Quickly obtain AWS credentials via Teleport
 alias taws='tsh aws'
@@ -236,3 +345,5 @@ tkube_interactive_login() {
   echo "Logging you into cluster: $cluster"
   tsh kube login "$cluster"
 }
+
+echo "[INFO] Teleport helper functions loaded. Use 'tl' to login, 'tpp[env]' to start proxies."

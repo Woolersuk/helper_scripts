@@ -1,20 +1,20 @@
 function kcdescribepod { param ([string] $i); kubectl describe pod $i }
-function kugetall { kubectl get all }
-function kugetpodsall { kubectl get pods }
-function kugetpodspecific { param ([string] $i); kubectl get pod $i }
-function kulist { kubectl config get-contexts }
-function kuswitch { param ([string] $i); kubectl config use-context $i }
-function kuconnect { param ([string] $i); kubectl exec -it $i -- /bin/bash }
-function kulogs { param ([string] $i); kubectl logs --v=8 $i }
+function kgetall { kubectl get all }
+function kgetpodsall { kubectl get pods }
+function kgetpodspecific { param ([string] $i); kubectl get pod $i }
+function klist { kubectl config get-contexts }
+function kswitch { param ([string] $i); kubectl config use-context $i }
+function kconnect { param ([string] $i); kubectl exec -it $i -- /bin/bash }
+function klogs { param ([string] $i); kubectl logs --v=8 $i }
 function dockerps { docker ps }
 
 New-Alias -Name "kuse" kuswitch -Force
 New-Alias -Name "kns" kubens -Force
-New-Alias -Name "klog" kulogs -Force
-New-Alias -Name "klist" kulist -Force
-New-Alias -Name "kgpo" kugetpodspecific -Force
-New-Alias -Name "kgpa" kugetpodsall -Force
-New-Alias -Name "kga" kugetall -Force
+New-Alias -Name "klog" klogs -Force
+New-Alias -Name "klist" klist -Force
+New-Alias -Name "kgpo" kgetpodspecific -Force
+New-Alias -Name "kgpa" kgetpodsall -Force
+New-Alias -Name "kga" kgetall -Force
 New-Alias -Name "kcx" kubectx -Force
 New-Alias -Name "kconn" kuconnect -Force
 New-Alias -Name "kcdp" kcdescribepod -Force

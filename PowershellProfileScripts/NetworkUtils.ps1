@@ -190,6 +190,22 @@ function GetPRStatus {
     }
 }
 
+function praut {
+    param (
+        [Parameter(Mandatory = $true)]
+        [int]$pr
+    )
+
+    $prData = az repos pr show --id $pr | ConvertFrom-Json
+
+    if ($null -ne $prData.autoCompleteSetBy) {
+        $name = $prData.autoCompleteSetBy.displayName
+        Write-Host "✅ Auto-complete is ENABLED by: $name" -ForegroundColor Green
+    } else {
+        Write-Host "❌ Auto-complete is NOT enabled." -ForegroundColor Yellow
+    }
+}
+
 function CompletePRRequest {
     param(
         [string]$PR,

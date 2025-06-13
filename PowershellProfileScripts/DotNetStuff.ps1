@@ -1,3 +1,18 @@
+function DotNetBuilder {
+	param($Fol)
+	dotnet build
+}
+
+function DotNetRunner {
+	param($Fol)
+	dotnet run
+}
+
+function DotNetBuildAndRun {
+		param($Fol)
+	dotnet build && dotnet run
+}
+
 function Rebuild-DotNet {
 	clear-host
 	dotnet new install C:\Nuget_Bits\new_templates\YL.Template.Web.Api.ThirdParty --force
@@ -89,8 +104,11 @@ function DotNetInstallerFromTemplate {
     Invoke-Expression $cmd
 }
 
-Set-Alias RBDN Rebuild-DotNet
-Set-Alias DNI DotNetInstaller
+Set-Alias rbdn Rebuild-DotNet
+Set-Alias dnb DotNetBuilder
+Set-Alias dni DotNetInstaller
+Set-Alias dnr DotNetRunner
+Set-Alias dnbr DotNetBuildAndRun
 Set-Alias DNNew DotNetInstallerFromTemplate
 #Example: DNNew -T YL.Web.Api.Customer -N Alex
 Set-Alias DNU DotNetRemover
